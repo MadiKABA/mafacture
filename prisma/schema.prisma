@@ -1,267 +1,134 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-  output   = "../lib/generated/prisma"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
-model SubscriptionPlan {
-  id             String   @id @default(uuid())
-  name           String   @unique
-  description    String?
-  price          Float    @default(0)
-  durationInDays Int      @default(30)
-  features       String[]
-  invoiceLimit   Int? // null = illimité
-  userLimit      Int? // null = illimité
-  isFreemium     Boolean  @default(false)
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  subscriptions Subscription[]
+enum Role {
+  PROPRIETAIRE
+  VENDEUR
+  CAISSIER
 }
 
-model Subscription {
-  id        String           @id @default(uuid())
-  companyId String           @unique
-  company   Company?         @relation(fields: [companyId], references: [id])
-  plan      SubscriptionPlan @relation(fields: [planId], references: [id])
-  planId    String
-  startDate DateTime
-  endDate   DateTime
-  isActive  Boolean          @default(true)
-  isTrial   Boolean          @default(false)
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
-
-  payments Payment[]
-}
-
-model Country {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  code      String   @unique // Code du pays (ex. "US", "SN", "FR")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  companies Company[] // Relations vers les entreprises
-  clients   Client[] // Relations vers les clients
-  User      User[]
-}
-
-model Company {
-  id             String        @id @default(uuid())
-  name           String
-  email          String        @unique
-  country        Country       @relation(fields: [countryId], references: [id]) // Référence au pays
-  countryId      String
-  subscription   Subscription?
-  subscriptionId String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-
-  users     User[] // Relation vers les utilisateurs de l'entreprise
-  clients   Client[] // Relation vers les clients de l'entreprise
-  invoices  Invoice[] // Factures liées à l'entreprise
-  Quotation Quotation[]
+enum MovementType {
+  ENTRY // Entrée en stock
+  EXIT // Sortie de stock
+  ADJUSTMENT // Ajustement
 }
 
 model User {
-  id           String   @id @default(uuid())
-  username     String   @unique
-  email        String   @unique
-  passwordHash String
-  role         String // Par exemple : "admin", "manager", "employee"
-  company      Company  @relation(fields: [companyId], references: [id])
-  companyId    String
-  country      Country  @relation(fields: [countryId], references: [id]) // Peut être modifié indépendamment
-  countryId    String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id         String    @id @default(uuid())
+  name       String
+  email      String    @unique
+  role       Role      @default(VENDEUR)
+  shopId     String?
+  shop       Shop?     @relation("ShopMembers", fields: [shopId], references: [id])
+  shopsOwned Shop[]    @relation("ShopOwner")
+  invoices   Invoice[] @relation("UserInvoices")
 }
 
-model Client {
-  id        String      @id @default(uuid())
-  name      String
-  email     String
-  phone     String?
-  country   Country     @relation(fields: [countryId], references: [id]) // Pays du client
-  countryId String
-  company   Company     @relation(fields: [companyId], references: [id])
-  companyId String
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  Invoice   Invoice[]
-  Quotation Quotation[]
-}
-
-model Payment {
-  id          String        @id @default(uuid())
-  amount      Float
-  paymentDate DateTime      @default(now())
-  method      PaymentMethod
-  status      PaymentStatus @default(PENDING)
-
-  // Lien vers l’abonnement (si c’est un paiement d’abonnement)
-  subscriptionId String?
-  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
-
-  // Lien vers la facture (si c’est un paiement de facture)
-  invoiceId String?
-  invoice   Invoice? @relation(fields: [invoiceId], references: [id])
-
-  provider             PaymentProvider? // OM, Wave, Stripe, etc.
-  transactionReference String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model Shop {
+  id             String          @id @default(uuid())
+  name           String
+  address        String
+  phone          String
+  ninea          String          @unique
+  ownerId        String
+  owner          User            @relation("ShopOwner", fields: [ownerId], references: [id])
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  invoices       Invoice[]
+  users          User[]          @relation("ShopMembers")
+  categories     Category[]
+  products       Product[]
+  stockMovements StockMovement[]
 }
 
 model Invoice {
-  id        String        @id @default(uuid())
-  companyId String
-  company   Company       @relation(fields: [companyId], references: [id])
-  clientId  String
-  client    Client        @relation(fields: [clientId], references: [id])
-  status    InvoiceStatus
-  total     Float
-  dueDate   DateTime
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-
-  payments    Payment[] // Plusieurs paiements peuvent être liés à une facture
-  InvoiceItem InvoiceItem[]
+  id             String           @id
+  name           String
+  issuerName     String           @default("")
+  issuerAddress  String           @default("")
+  clientName     String           @default("")
+  clientAddress  String           @default("")
+  invoiceDate    String           @default("")
+  dueDate        String           @default("")
+  vatActive      Boolean          @default(false)
+  vatRate        Float            @default(20)
+  status         Int              @default(1)
+  updatedAt      DateTime         @updatedAt
+  createdAt      DateTime         @default(now())
+  lines          InvoiceLine[]    @relation("InvoiceLines")
+  userId         String
+  createdById    User             @relation("UserInvoices", fields: [userId], references: [id])
+  shopId         String
+  shop           Shop             @relation(fields: [shopId], references: [id])
+  paidAmount     Float?           @default(0)
+  receivedAmount Float?
+  changeGiven    Float?
+  paymentMethod  String?
+  payments       InvoicePayment[] // ✅ Paiements multiples
 }
 
-enum InvoiceStatus {
-  DRAFT
-  SENT
-  PAID
-  PARTIALLY_PAID
-  OVERDUE
-  CANCELLED
+model InvoicePayment {
+  id             String   @id @default(uuid())
+  invoiceId      String
+  invoice        Invoice  @relation(fields: [invoiceId], references: [id])
+  amount         Float
+  method         String
+  receivedAt     DateTime @default(now())
+  receivedAmount Float // ✅ Ajouté
+  changeGiven    Float // ✅ Ajouté
 }
 
-enum PaymentMethod {
-  CARD
-  BANK_TRANSFER
-  PAYPAL
-  CASH
-}
-
-enum PaymentStatus {
-  PENDING
-  COMPLETED
-  FAILED
-  REFUNDED
-}
-
-model Quotation {
-  id              String          @id @default(uuid())
-  quotationNumber String          @unique // Numéro unique du devis
-  status          QuotationStatus // Statut du devis : accepté, en attente, annulé
-  totalAmount     Float // Montant total du devis
-  vatAmount       Float // Montant de la TVA
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-
-  client    Client  @relation(fields: [clientId], references: [id]) // Client associé
-  clientId  String
-  company   Company @relation(fields: [companyId], references: [id]) // Entreprise qui a généré le devis
-  companyId String
-
-  items QuotationItem[] // Liste des items du devis
-}
-
-enum QuotationStatus {
-  PENDING
-  ACCEPTED
-  CANCELLED
-}
-
-model InvoiceItem {
-  id          String  @id @default(uuid())
-  description String // Description de l'item (produit/service)
-  quantity    Int // Quantité de l'item
-  unitPrice   Float // Prix unitaire de l'item
-  total       Float // Prix total pour cet item (quantité * prix unitaire)
-  vatAmount   Float // Montant de la TVA sur cet item
-  invoiceId   String
-  invoice     Invoice @relation(fields: [invoiceId], references: [id]) // Facture associée
-  product     Product @relation(fields: [productId], references: [id]) // Produit/service associé
+model InvoiceLine {
+  id          String   @id @default(uuid())
+  description String   @default("")
+  quantity    Int      @default(0)
+  unitPrice   Float    @default(0)
+  invoiceId   String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  invoice     Invoice? @relation("InvoiceLines", fields: [invoiceId], references: [id], onDelete: Cascade)
   productId   String
+  product     Product  @relation(fields: [productId], references: [id])
 }
 
-model QuotationItem {
-  id          String @id @default(uuid())
-  description String // Description de l'item (produit/service)
-  quantity    Int // Quantité de l'item
-  unitPrice   Float // Prix unitaire de l'item
-  total       Float // Prix total pour cet item (quantité * prix unitaire)
-  vatAmount   Float // Montant de la TVA sur cet item
-
-  quotation   Quotation @relation(fields: [quotationId], references: [id]) // Devis associé
-  quotationId String
-  product     Product   @relation(fields: [productId], references: [id]) // Produit/service associé
-  productId   String
+model Category {
+  id       String    @id @default(uuid())
+  name     String
+  shopId   String
+  shop     Shop      @relation(fields: [shopId], references: [id])
+  products Product[]
 }
 
 model Product {
-  id          String   @id @default(uuid())
-  name        String // Nom du produit/service
-  description String // Description du produit/service
-  price       Float // Prix du produit/service
-  vatRate     Float // Taux de TVA applicable pour ce produit/service
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  invoiceItems   InvoiceItem[] // Relation avec les items de facture
-  quotationItems QuotationItem[] // Relation avec les items de devis
+  id           String          @id @default(uuid())
+  name         String
+  price        Float
+  quantity     Int             @default(0)
+  imageUrl     String?
+  barcode      String?         @unique
+  categoryId   String
+  category     Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  shopId       String
+  shop         Shop            @relation(fields: [shopId], references: [id])
+  movements    StockMovement[]
+  invoiceLines InvoiceLine[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
 }
 
-enum PaymentProvider {
-  WAVE
-  ORANGE_MONEY
-  STRIPE
-  PAYPAL
-  CASH
-  OTHER
-}
-
-model AdminUser {
-  id        String    @id @default(uuid())
-  name      String
-  email     String    @unique
-  password  String
-  isActive  Boolean   @default(true)
-  roleId    String
-  role      AdminRole @relation(fields: [roleId], references: [id])
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-}
-
-model AdminRole {
-  id          String            @id @default(uuid())
-  name        String            @unique
-  permissions AdminPermission[] @relation("RolePermissions")
-  users       AdminUser[]
-}
-
-model AdminPermission {
-  id          String      @id @default(uuid())
-  name        String      @unique
-  description String?
-  roles       AdminRole[] @relation("RolePermissions")
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+model StockMovement {
+  id        String       @id @default(uuid())
+  type      MovementType
+  quantity  Int
+  shopId    String?
+  shop      Shop?        @relation(fields: [shopId], references: [id])
+  productId String
+  product   Product      @relation(fields: [productId], references: [id])
+  createdAt DateTime     @default(now())
 }

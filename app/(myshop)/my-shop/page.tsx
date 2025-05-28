@@ -19,56 +19,46 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
-import { Truck, Users, DollarSign } from "lucide-react"
-import DeliveryCharts from "@/components/admin/BillingCharts"
+import { FileText, Users, DollarSign } from "lucide-react"
+import BillingCharts from "@/components/admin/BillingCharts"
 
-const allDeliveries = [
-    { id: "DEL-00123", client: "Fatou Ndiaye", livreur: "Mamadou Diallo", status: "En cours", price: 25000, date: "2025-05-10" },
-    { id: "DEL-00124", client: "Aminata Sow", livreur: "Ibrahima Barry", status: "Livrée", price: 30000, date: "2025-05-11" },
-    { id: "DEL-00125", client: "Ousmane Bah", livreur: "Seydou Camara", status: "En attente", price: 20000, date: "2025-05-12" },
-    { id: "DEL-00126", client: "Moussa Faye", livreur: "Mamadou Diallo", status: "Livrée", price: 35000, date: "2025-05-13" },
-    { id: "DEL-00127", client: "Awa Camara", livreur: "Ibrahima Barry", status: "En cours", price: 28000, date: "2025-05-14" },
+const allInvoices = [
+    { id: "FAC-0001", client: "Société ABC", status: "Payée", total: 450000, date: "2025-05-10" },
+    { id: "FAC-0002", client: "Client Freelance", status: "En attente", total: 120000, date: "2025-05-11" },
+    { id: "FAC-0003", client: "Entreprise XYZ", status: "Payée", total: 320000, date: "2025-05-12" },
+    { id: "FAC-0004", client: "Société ABC", status: "En retard", total: 210000, date: "2025-05-13" },
+    { id: "FAC-0005", client: "Client Freelance", status: "En attente", total: 135000, date: "2025-05-14" },
 ]
 
 const stats = [
-    { label: "Livraisons totales", value: 1280, icon: Truck, color: "bg-blue-100 text-blue-700" },
-    { label: "Livreurs actifs", value: 85, icon: Users, color: "bg-green-100 text-green-700" },
-    { label: "Revenus (GNF)", value: "12 540 000", icon: DollarSign, color: "bg-purple-100 text-purple-700" },
+    { label: "Factures totales", value: 320, icon: FileText, color: "bg-blue-100 text-blue-700" },
+    { label: "Clients actifs", value: 54, icon: Users, color: "bg-green-100 text-green-700" },
+    { label: "Revenus (GNF)", value: "98 540 000", icon: DollarSign, color: "bg-purple-100 text-purple-700" },
 ]
 
 const statusColor = {
-    "En cours": "bg-yellow-200 text-yellow-800",
-    Livrée: "bg-green-200 text-green-800",
-    "En attente": "bg-gray-200 text-gray-800",
+    "Payée": "bg-green-200 text-green-800",
+    "En attente": "bg-yellow-200 text-yellow-800",
+    "En retard": "bg-red-200 text-red-800",
 }
 
-const chartData = [
-    { name: "Jan", livraisons: 120 },
-    { name: "Fév", livraisons: 98 },
-    { name: "Mar", livraisons: 150 },
-    { name: "Avr", livraisons: 130 },
-    { name: "Mai", livraisons: 170 },
-]
-
-export default function Dashboard() {
+export default function FacturationDashboard() {
     const [filter, setFilter] = useState("")
 
-    // Filtrer les livraisons selon le client, livreur ou status (insensible à la casse)
-    const filteredDeliveries = useMemo(() => {
-        if (!filter) return allDeliveries
+    const filteredInvoices = useMemo(() => {
+        if (!filter) return allInvoices
         const lower = filter.toLowerCase()
-        return allDeliveries.filter(
-            (d) =>
-                d.client.toLowerCase().includes(lower) ||
-                d.livreur.toLowerCase().includes(lower) ||
-                d.status.toLowerCase().includes(lower)
+        return allInvoices.filter(
+            (f) =>
+                f.client.toLowerCase().includes(lower) ||
+                f.status.toLowerCase().includes(lower) ||
+                f.id.toLowerCase().includes(lower)
         )
     }, [filter])
 
     return (
         <div className="space-y-6">
-            {/* Stats */}
+            {/* Statistiques */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                 {stats.map(({ label, value, icon: Icon, color }) => (
                     <Card key={label} className="flex items-center space-x-4 p-4">
@@ -83,17 +73,18 @@ export default function Dashboard() {
                 ))}
             </div>
 
-            <DeliveryCharts />
+            {/* Graphique de facturation */}
+            <BillingCharts />
 
-            {/* Filtre + Tableau */}
+            {/* Filtrage + Tableau */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Dernières livraisons</CardTitle>
-                    <CardDescription>Filtrer par client, livreur ou statut</CardDescription>
+                    <CardTitle>Dernières factures</CardTitle>
+                    <CardDescription>Filtrer par client, statut ou numéro</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Input
-                        placeholder="Rechercher..."
+                        placeholder="Rechercher une facture..."
                         value={filter}
                         onChange={(e) => setFilter(e.target.value)}
                         className="mb-4 max-w-sm"
@@ -102,28 +93,26 @@ export default function Dashboard() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Commande</TableHead>
+                                    <TableHead>Facture</TableHead>
                                     <TableHead>Client</TableHead>
-                                    <TableHead>Livreur</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Prix (GNF)</TableHead>
+                                    <TableHead>Statut</TableHead>
+                                    <TableHead>Montant TTC</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredDeliveries.map(({ id, client, livreur, status, price }) => (
+                                {filteredInvoices.map(({ id, client, status, total }) => (
                                     <TableRow key={id}>
                                         <TableCell>{id}</TableCell>
                                         <TableCell>{client}</TableCell>
-                                        <TableCell>{livreur}</TableCell>
                                         <TableCell>
                                             <Badge className={statusColor[status]}>{status}</Badge>
                                         </TableCell>
-                                        <TableCell>{price.toLocaleString()}</TableCell>
+                                        <TableCell>{total.toLocaleString()}</TableCell>
                                     </TableRow>
                                 ))}
-                                {filteredDeliveries.length === 0 && (
+                                {filteredInvoices.length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="text-center text-gray-500">
+                                        <TableCell colSpan={4} className="text-center text-gray-500">
                                             Aucun résultat trouvé
                                         </TableCell>
                                     </TableRow>
