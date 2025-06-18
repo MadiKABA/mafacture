@@ -36,13 +36,19 @@ const stats = [
     { label: "Revenus (GNF)", value: "98 540 000", icon: DollarSign, color: "bg-purple-100 text-purple-700" },
 ]
 
-const statusColor = {
+type InvoiceStatus = "Payée" | "En attente" | "En retard";
+
+const statusColor: Record<InvoiceStatus, string> = {
     "Payée": "bg-green-200 text-green-800",
     "En attente": "bg-yellow-200 text-yellow-800",
     "En retard": "bg-red-200 text-red-800",
+};
+interface MyComponentProps {
+    status: InvoiceStatus; // Ici, on spécifie que 'status' doit être de type InvoiceStatus
 }
 
 export default function FacturationDashboard() {
+    const status: InvoiceStatus = "Payée";
     const [filter, setFilter] = useState("")
 
     const filteredInvoices = useMemo(() => {
